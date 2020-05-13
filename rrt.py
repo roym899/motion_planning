@@ -41,6 +41,8 @@ class GUI(QDialog):
         self.sample_10_button.clicked.connect(partial(GUI.steps, self, 10))
         self.sample_100_button = QPushButton('100 samples')
         self.sample_100_button.clicked.connect(partial(GUI.steps, self, 100))
+        self.reset_button = QPushButton('Reset')
+        self.reset_button.clicked.connect(self.reset_it)
         self.figure = Figure(dpi=85,
                              facecolor=(1, 1, 1),
                              edgecolor=(0, 0, 0))
@@ -54,6 +56,7 @@ class GUI(QDialog):
         settings_layout.addWidget(self.sample_1_button)
         settings_layout.addWidget(self.sample_10_button)
         settings_layout.addWidget(self.sample_100_button)
+        settings_layout.addWidget(self.reset_button)
         layout.addLayout(settings_layout, 1)
 
         layout.addWidget(self.figure_canvas, 2)
@@ -70,9 +73,22 @@ class GUI(QDialog):
         self.goal = np.array([10,90])
         
         self.tree = Tree(Node(self.start))
-        self.tree.add_child(Node([20,20]), self.tree.root)
         
-        self.step_size = 5
+        self.step_size = 4
+        
+        self.goal_sample_every_n_samples = 10
+        self.goal_sample_in = self.goal_sample_every_n_samples
+        
+        self.goal_reached = False
+        self.goal_node = None
+        
+    def reset_it(self):
+        self.tree = Tree(Node(self.start))
+        self.goal_sample_in = self.goal_sample_every_n_samples
+        self.goal_reached = False
+        self.goal_node = None
+        
+        self.update_plot(self.map)
         
     def distance(self, pose_1, pose_2):
         return np.linalg.norm((pose_1 - pose_2))
@@ -104,16 +120,32 @@ class GUI(QDialog):
         
     def steps(self, n):
         for i in np.arange(n):
-            sample = np.array([np.random.uniform(0,self.map.shape[0]+1), 
-                            np.random.uniform(0,self.map.shape[1]+1)])
+            self.goal_sample_in -= 1
+            goal_attempt = False
+            sample_reached = False
+            
+            if self.goal_sample_in == 0:
+                self.goal_sample_in = self.goal_sample_every_n_samples
+                sample = self.goal
+                goal_attempt = True
+            else:
+                sample = np.array([np.random.uniform(0,self.map.shape[0]+1), np.random.uniform(0,self.map.shape[1]+1)])
             
             
             closest_node, distance = self.closest_node(sample)
             
-            new_pose = closest_node.pose + self.step_size * (sample - closest_node.pose)/distance
+            if distance < self.step_size and distance > 0:
+                sample_reached = True
+                new_pose = sample
+            else:
+                new_pose = closest_node.pose + self.step_size*(sample - closest_node.pose) / distance
             
             if self.collision_free(new_pose):
-                self.tree.add_child(Node(new_pose), closest_node)
+                new_node = Node(new_pose)
+                self.tree.add_child(new_node, closest_node)
+                if goal_attempt and sample_reached:
+                    self.goal_reached = True
+                    self.goal_node = new_node
 
         self.update_plot(self.map, sample)
 
@@ -124,19 +156,27 @@ class GUI(QDialog):
         queue = [self.tree.root]
         while len(queue):
             node = queue.pop(0)
-            self.ax.scatter(node.pose[0], node.pose[1], c='k', s=10, zorder=1)
+            self.ax.scatter(node.pose[0], node.pose[1], c='k', s=10, zorder=2)
             if node.parent is not None:
                 self.ax.plot([node.pose[0], node.parent.pose[0]], 
                              [node.pose[1], node.parent.pose[1]],
                              c = 'k', zorder=1)
             for child in node.children:
                 queue.append(child)
+                
+        if self.goal_reached:
+            node = self.goal_node
+            while node.parent is not None:
+                self.ax.plot([node.pose[0], node.parent.pose[0]], 
+                             [node.pose[1], node.parent.pose[1]],
+                             c = 'r', zorder=1)
+                node = node.parent
+                
         
-        self.ax.scatter(sample[0],sample[1], zorder=2)
-        self.ax.scatter(self.start[0], self.start[1], zorder=2)
-        abc = self.ax.scatter(self.goal[0], self.goal[1], zorder=2)
-        
-        abc.remove()
+        self.ax.scatter(self.start[0], self.start[1], zorder=3, s=40)
+        self.ax.scatter(self.goal[0], self.goal[1], zorder=3, s=40)
+        if sample is not None:
+            self.ax.scatter(sample[0],sample[1], zorder=3, s=25)
         
         self.ax.set_xlim(0,map.shape[0])
         self.ax.set_ylim(0,map.shape[1])
