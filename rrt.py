@@ -42,7 +42,7 @@ class GUI(QDialog):
         self.sample_100_button = QPushButton('100 samples')
         self.sample_100_button.clicked.connect(partial(GUI.steps, self, 100))
         self.reset_button = QPushButton('Reset')
-        self.reset_button.clicked.connect(self.reset_it)
+        self.reset_button.clicked.connect(self.reset)
         self.figure = Figure(dpi=85,
                              facecolor=(1, 1, 1),
                              edgecolor=(0, 0, 0))
@@ -72,17 +72,13 @@ class GUI(QDialog):
         self.start = np.array([10,10])
         self.goal = np.array([10,90])
         
-        self.tree = Tree(Node(self.start))
         
         self.step_size = 4
-        
         self.goal_sample_every_n_samples = 10
-        self.goal_sample_in = self.goal_sample_every_n_samples
         
-        self.goal_reached = False
-        self.goal_node = None
+        self.reset()
         
-    def reset_it(self):
+    def reset(self):
         self.tree = Tree(Node(self.start))
         self.goal_sample_in = self.goal_sample_every_n_samples
         self.goal_reached = False
@@ -137,8 +133,10 @@ class GUI(QDialog):
             if distance < self.step_size and distance > 0:
                 sample_reached = True
                 new_pose = sample
-            else:
+            elif distance > 0:
                 new_pose = closest_node.pose + self.step_size*(sample - closest_node.pose) / distance
+            else:
+                continue
             
             if self.collision_free(new_pose):
                 new_node = Node(new_pose)

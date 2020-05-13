@@ -42,7 +42,7 @@ class GUI(QDialog):
         self.sample_100_button = QPushButton('100 samples')
         self.sample_100_button.clicked.connect(partial(GUI.steps, self, 100))
         self.reset_button = QPushButton('Reset')
-        self.reset_button.clicked.connect(self.reset_it)
+        self.reset_button.clicked.connect(self.reset)
         self.figure = Figure(dpi=85,
                              facecolor=(1, 1, 1),
                              edgecolor=(0, 0, 0))
@@ -72,18 +72,23 @@ class GUI(QDialog):
         self.start = np.array([10,10])
         self.goal = np.array([10,90])
         
+        self.step_size = 4
+        
+        self.reset()
         self.start_tree = Tree(Node(self.start))
         self.goal_tree = Tree(Node(self.goal))
         self.tree = self.start_tree
         self.other_tree = self.goal_tree
         
-        self.step_size = 4
         
         self.trees_connected = False
         self.tree_connecting_nodes = []
         
-    def reset_it(self):
-        self.tree = Tree(Node(self.start))
+    def reset(self):
+        self.start_tree = Tree(Node(self.start))
+        self.goal_tree = Tree(Node(self.goal))
+        self.tree = self.start_tree
+        self.other_tree = self.goal_tree
         self.trees_connected = False
         self.tree_connecting_nodes = []
         
