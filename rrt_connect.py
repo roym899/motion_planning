@@ -138,7 +138,7 @@ class GUI(QDialog):
                     closest_node_other, total_distance = self.closest_node(self.other_tree, new_pose)
                     current_node_other = closest_node_other
                     
-                    while True:
+                    while True and not self.trees_connected:
                         cur_distance = np.linalg.norm(current_node_other.pose - new_node.pose)
                         if cur_distance < self.step_size:
                             new_pose_other = new_pose
